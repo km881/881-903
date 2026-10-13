@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
@@ -134,7 +135,7 @@
       margin-top: 4px;
     }
 
-    /* 抽屜按鈕列 */
+    /* 快捷功能按鈕組 */
     .btn-row {
       display: flex;
       gap: 8px;
@@ -273,7 +274,7 @@
       line-height: 1.4;
     }
 
-    /* 底部抽屜面板 */
+    /* 底部抽屜面板 (Bottom Sheet) */
     .drawer-overlay {
       position: fixed;
       inset: 0;
@@ -508,13 +509,16 @@
       <span id="statusText">準備就緒</span>
     </div>
 
+    <!-- 雙頻道開關 -->
     <div class="channel-switch">
       <button class="channel-btn active" id="btn881" onclick="switchChannel('881')">雷霆 881</button>
       <button class="channel-btn" id="btn903" onclick="switchChannel('903')">叱咤 903</button>
     </div>
 
+    <!-- 錯誤提示條 -->
     <div id="errorBox"></div>
 
+    <!-- 節目卡片 -->
     <div class="program-box">
       <div class="program-top-row">
         <span class="program-tag">● ON AIR 正式播出</span>
@@ -536,6 +540,7 @@
     </div>
   </div>
 
+  <!-- 數據面板 -->
   <div class="card">
     <div class="card-label">本次收聽消耗流量</div>
     <div>
@@ -555,6 +560,7 @@
     </div>
   </div>
 
+  <!-- 播放控制區 -->
   <div class="controls">
     <button class="btn-reset" onclick="resetStats()">
       <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
@@ -567,7 +573,7 @@
     <div style="width: 52px;"></div>
   </div>
 
-  <!-- 1. 全日節目表抽屜面板 -->
+  <!-- 1. 全日節目表抽屜 -->
   <div id="drawerOverlay" class="drawer-overlay" onclick="closeScheduleDrawer(event)">
     <div class="drawer-content" onclick="event.stopPropagation()">
       <div class="drawer-handle"></div>
@@ -582,7 +588,7 @@
     </div>
   </div>
 
-  <!-- 2. 聆聽歷史記錄抽屜面板 -->
+  <!-- 2. 聆聽歷史記錄抽屜 -->
   <div id="historyOverlay" class="drawer-overlay" onclick="closeHistoryDrawer(event)">
     <div class="drawer-content" onclick="event.stopPropagation()">
       <div class="drawer-handle"></div>
@@ -629,7 +635,7 @@
       }
     };
 
-    // 精確校對後的 881 / 903 時間表
+    // 精確校對後的商台 881 / 903 完整時間表
     const SCHEDULES = {
       '881': {
         weekday: [
@@ -778,7 +784,7 @@
       errorBox.innerText = '';
     }
 
-    // iOS 原生優先播放串流
+    // iOS 原生 Safari HLS 優先解碼通道
     function loadStream(url) {
       clearError();
       const isApple = audio.canPlayType('application/vnd.apple.mpegurl');
@@ -786,6 +792,7 @@
         if (audio.src !== url) {
           audio.src = url;
         }
+        audio.load();
       } else if (typeof Hls !== 'undefined' && Hls.isSupported()) {
         if (hls) hls.destroy();
         hls = new Hls({ enableWorker: true, lowLatencyMode: true });
@@ -798,6 +805,7 @@
         });
       } else {
         audio.src = url;
+        audio.load();
       }
     }
 
@@ -908,7 +916,7 @@
       drawerOverlay.classList.remove('show');
     }
 
-    // 歷史記錄安全讀取
+    // 歷史記錄存取
     function getStoredHistory() {
       try {
         return JSON.parse(localStorage.getItem('radio_history_records') || '[]');
@@ -937,4 +945,246 @@
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
         const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2,
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        
+        const dateStr = `${year}/${month}/${day}`;
+        const timeStr = `${hours}:${minutes}`;
+        const dataUsedMB = ((sessionSeconds * BYTES_PER_SECOND) / (1024 * 1024)).toFixed(2);
+
+        const record = {
+          id: Date.now(),
+          dateStr: dateStr,
+          timeStr: timeStr,
+          channel: sessionChannelKey,
+          channelName: CHANNELS[sessionChannelKey].shortName,
+          durationSec: sessionSeconds,
+          dataMB: dataUsedMB
+        };
+
+        saveRecordToHistory(record);
+      }
+
+      sessionSeconds = 0;
+      sessionStartDate = null;
+    }
+
+    function formatSecToDuration(totalSec) {
+      const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+      const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+      const s = String(totalSec % 60).padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    function renderHistoryList() {
+      const list = getStoredHistory();
+      historyContainer.innerHTML = '';
+
+      if (list.length === 0) {
+        historyContainer.innerHTML = '<div class="empty-history">暫無聆聽記錄<br><small style="color:#636366">連續收聽超過 60 秒將自動在此記錄</small></div>';
+        historyTotalTime.innerText = '00:00:00';
+        historyTotalData.innerText = '0.00 MB';
+        return;
+      }
+
+      let totalSec = 0;
+      let totalMB = 0;
+
+      list.forEach(item => {
+        totalSec += (item.durationSec || 0);
+        totalMB += parseFloat(item.dataMB || 0);
+
+        const is903 = (item.channel === '903');
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `
+          <div class="history-item-left">
+            <div class="history-channel-tag">
+              ${item.channelName}
+              <span class="tag-pill ${is903 ? 'p903' : ''}">${item.channel}</span>
+            </div>
+            <div class="history-date">${item.dateStr} ${item.timeStr} 開始</div>
+          </div>
+          <div class="history-item-right">
+            <div class="history-data">${item.dataMB} MB</div>
+            <div class="history-duration">${formatSecToDuration(item.durationSec)}</div>
+          </div>
+        `;
+        historyContainer.appendChild(div);
+      });
+
+      historyTotalTime.innerText = formatSecToDuration(totalSec);
+      historyTotalData.innerText = `${totalMB.toFixed(2)} MB`;
+    }
+
+    function openHistoryDrawer() {
+      renderHistoryList();
+      historyOverlay.classList.add('show');
+    }
+
+    function closeHistoryDrawer() {
+      historyOverlay.classList.remove('show');
+    }
+
+    function clearAllHistory() {
+      if (confirm('確定要清除所有聆聽記錄嗎？')) {
+        try { localStorage.removeItem('radio_history_records'); } catch(e){}
+        window._tempRecords = [];
+        renderHistoryList();
+      }
+    }
+
+    function switchChannel(channelKey) {
+      if (currentChannel === channelKey || isConnecting) return;
+
+      if (!audio.paused) {
+        recordCurrentSession();
+      }
+
+      currentChannel = channelKey;
+      sessionChannelKey = channelKey;
+      if (!audio.paused) {
+        sessionStartDate = new Date();
+      }
+
+      document.getElementById('btn881').classList.toggle('active', channelKey === '881');
+      document.getElementById('btn903').classList.toggle('active', channelKey === '903');
+
+      updateScheduleDisplay();
+      if (drawerOverlay.classList.contains('show')) {
+        renderScheduleList();
+      }
+
+      const wasPlaying = !audio.paused;
+      loadStream(CHANNELS[channelKey].url);
+
+      if (wasPlaying) {
+        executePlay();
+      }
+    }
+
+    function togglePlay() {
+      if (isConnecting) return;
+
+      if (audio.paused) {
+        if (!audio.src) {
+          loadStream(CHANNELS[currentChannel].url);
+        }
+        executePlay();
+      } else {
+        audio.pause();
+        playBtn.innerText = '▶';
+        statusBadge.classList.remove('active');
+        statusText.innerText = '已暫停';
+        stopTimer();
+        recordCurrentSession();
+      }
+    }
+
+    function executePlay() {
+      isConnecting = true;
+      statusText.innerText = '緩衝連線中...';
+
+      if (!audio.src || audio.src === window.location.href) {
+        loadStream(CHANNELS[currentChannel].url);
+      }
+
+      audio.play().then(() => {
+        isConnecting = false;
+        playBtn.innerText = '❚❚';
+        statusBadge.classList.add('active');
+        statusText.innerText = 'LIVE 直播中';
+        clearError();
+
+        sessionStartDate = new Date();
+        sessionChannelKey = currentChannel;
+        sessionSeconds = 0;
+
+        startTimer();
+      }).catch(err => {
+        isConnecting = false;
+        if (err.name === 'AbortError') return;
+
+        statusText.innerText = '連線失敗';
+        let detail = err.message;
+        if (audio.error) {
+          const codes = {
+            1: "播放被中止 (ABORTED)",
+            2: "網絡連線中斷 (NETWORK)",
+            3: "音訊解碼失敗 (DECODE)",
+            4: "來源無法讀取或伺服器離線 (SRC_NOT_SUPPORTED)"
+          };
+          detail = codes[audio.error.code] || `Error Code: ${audio.error.code}`;
+        }
+        showError(`播放失敗：${detail}`);
+      });
+    }
+
+    function updateMediaSession() {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentPlayingShowName || CHANNELS[currentChannel].name,
+          artist: CHANNELS[currentChannel].shortName,
+          album: '香港商業電台',
+          artwork: [
+            { src: 'https://img.icons8.com/color/512/radio.png', sizes: '512x512', type: 'image/png' }
+          ]
+        });
+
+        navigator.mediaSession.setActionHandler('play', togglePlay);
+        navigator.mediaSession.setActionHandler('pause', togglePlay);
+      }
+    }
+
+    function startTimer() {
+      if (timerInterval) return;
+      speedDisplay.innerText = "10.0 KB/s";
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        sessionSeconds++;
+        updateStats();
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      speedDisplay.innerText = "0.0 KB/s";
+    }
+
+    function updateStats() {
+      const totalBytes = secondsElapsed * BYTES_PER_SECOND;
+      const mb = totalBytes / (1024 * 1024);
+      dataDisplay.innerText = mb.toFixed(2);
+      timeDisplay.innerText = formatSecToDuration(secondsElapsed);
+    }
+
+    function resetStats() {
+      secondsElapsed = 0;
+      updateStats();
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && audio.paused && sessionSeconds >= 60) {
+        recordCurrentSession();
+      }
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (!audio.paused) {
+        recordCurrentSession();
+      }
+    });
+
+    audio.addEventListener('error', function () {
+      statusText.innerText = '串流錯誤';
+      showError("無法獲取電台音訊，伺服器可能無回應。");
+    });
+
+    // 初始化載入
+    loadStream(CHANNELS[currentChannel].url);
+    updateScheduleDisplay();
+    setInterval(updateScheduleDisplay, 30000);
+  </script>
+</body>
+</html>
+
