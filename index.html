@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html>
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSFiddle bLdj32qm</title>
+
+  <style>
+    
+  </style>
+
+  
+</head>
+<body>
+  <!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>商台直播</title>
+
+  <!-- iOS PWA 獨立 App 設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="商台直播">
+  <link rel="apple-touch-icon" href="https://img.icons8.com/color/180/radio.png">
+
+  <!-- Hls.js 跨平台支援 (電腦 Chrome/Edge + iOS Safari) -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    body {
+      background: radial-gradient(circle at top, #1a1f2c, #0a0c10);
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: env(safe-area-inset-top, 24px) 24px env(safe-area-inset-bottom, 32px) 24px;
+    }
+    .header {
+      margin-top: 10px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 13px;
+      font-weight: 600;
+      color: #8e8e93;
+    }
+    .badge.active {
+      color: #ff453a;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    
+    /* 雙頻道切換開關 */
+    .channel-switch {
+      display: flex;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 3px;
+      border-radius: 16px;
+      margin-top: 12px;
+      width: 240px;
+    }
+    .channel-btn {
+      flex: 1;
+      padding: 8px 0;
+      border: none;
+      background: transparent;
+      color: #8e8e93;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 13px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .channel-btn.active {
+      background: #ffffff;
+      color: #000000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    /* 節目資訊卡片 */
+    .program-box {
+      width: 100%;
+      max-width: 360px;
+      margin-top: 14px;
+      padding: 16px 18px;
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      text-align: center;
+    }
+    .program-top-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .program-tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #ff9f0a;
+      text-transform: uppercase;
+    }
+    .day-pill {
+      font-size: 10px;
+      font-weight: 600;
+      color: #8e8e93;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+    .program-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+    .program-time {
+      font-size: 13px;
+      color: #8e8e93;
+      margin-top: 4px;
+    }
+
+    /* 功能快捷按鈕組 (節目表 + 聆聽記錄) */
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+    .nav-btn {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 7px 0;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-btn:active {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(0.97);
+    }
+
+    .program-next {
+      font-size: 12px;
+      color: #636366;
+      margin-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 8px;
+    }
+
+    /* 數據監控面板 */
+    .card {
+      width: 100%;
+      max-width: 360px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 28px;
+      padding: 24px 20px;
+      text-align: center;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .card-label {
+      font-size: 13px;
+      color: #8e8e93;
+      margin-bottom: 4px;
+    }
+    .data-val {
+      font-size: 54px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      font-variant-numeric: tabular-nums;
+    }
+    .data-unit {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0a84ff;
+      margin-left: 4px;
+    }
+    .stats-row {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .stat-box small {
+      display: block;
+      color: #8e8e93;
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+    .stat-box span {
+      font-size: 16px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 播放控制區 */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 36px;
+      margin-bottom: 24px;
+    }
+    .btn-reset {
+      background: none;
+      border: none;
+      color: #8e8e93;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .btn-reset:active {
+      color: #ffffff;
+    }
+    .btn-play {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: none;
+      color: #000000;
+      font-size: 28px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(255, 255, 255, 0.2);
+      transition: transform 0.1s;
+    }
+    .btn-play:active {
+      transform: scale(0.94);
+    }
+
+    /* 錯誤警示條 */
+    #errorBox {
+      display: none;
+      background: rgba(255, 69, 58, 0.2);
+      border: 1px solid #ff453a;
+      color: #ff9f0a;
+      padding: 10px 16px;
+      border-radius: 14px;
+      font-size: 13px;
+      margin-top: 12px;
+      max-width: 360px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* 通用底部抽屜樣式 (Bottom Sheet) */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: flex-end;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .drawer-overlay.show {
+      display: flex;
+      opacity: 1;
+    }
+    .drawer-content {
+      width: 100%;
+      max-width: 440px;
+      max-height: 78vh;
+      background: #1c1c1e;
+      border-radius: 26px 26px 0 0;
+      padding: 18px 20px calc(env(safe-area-inset-bottom, 20px) + 12px) 20px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5);
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .drawer-overlay.show .drawer-content {
+      transform: translateY(0);
+    }
+    .drawer-handle {
+      width: 36px;
+      height: 4px;
+      background: #48484a;
+      border-radius: 2px;
+      margin: 0 auto 14px auto;
+    }
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .drawer-title-box {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .drawer-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .drawer-subtitle {
+      font-size: 12px;
+      color: #8e8e93;
+    }
+    .drawer-close {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #8e8e93;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .drawer-list {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 4px;
+    }
+    .drawer-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .drawer-list::-webkit-scrollbar-thumb {
+      background: #3a3a3c;
+      border-radius: 4px;
+    }
+
+    /* 節目清單項 */
+    .schedule-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 14px;
+      border: 1px solid transparent;
+    }
+    .schedule-item.current {
+      background: rgba(10, 132, 255, 0.15);
+      border-color: rgba(10, 132, 255, 0.4);
+    }
+    .schedule-item-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    .schedule-item.current .schedule-item-title {
+      color: #0a84ff;
+    }
+    .schedule-item-time {
+      font-size: 12px;
+      color: #8e8e93;
+      margin-top: 2px;
+    }
+    .live-badge {
+      display: none;
+      font-size: 11px;
+      font-weight: 700;
+      color: #30d158;
+      background: rgba(48, 209, 88, 0.15);
+      padding: 3px 8px;
+      border-radius: 8px;
+    }
+    .schedule-item.current .live-badge {
+      display: inline-block;
+    }
+
+    /* 歷史記錄專用卡片 */
+    .history-summary {
+      display: flex;
+      justify-content: space-around;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .summary-box {
+      text-align: center;
+    }
+    .summary-box small {
+      display: block;
+      color: #8e8e93;
+      font-size: 11px;
+      margin-bottom: 3px;
+    }
+    .summary-box span {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0a84ff;
+      font-variant-numeric: tabular-nums;
+    }
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .history-item-left {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .history-channel-tag {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tag-pill {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(10, 132, 255, 0.2);
+      color: #0a84ff;
+    }
+    .tag-pill.p903 {
+      background: rgba(255, 159, 10, 0.2);
+      color: #ff9f0a;
+    }
+    .history-date {
+      font-size: 11px;
+      color: #8e8e93;
+    }
+    .history-item-right {
+      text-align: right;
+    }
+    .history-data {
+      font-size: 15px;
+      font-weight: 700;
+      color: #64d2ff;
+      font-variant-numeric: tabular-nums;
+    }
+    .history-duration {
+      font-size: 12px;
+      color: #8e8e93;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .btn-clear-history {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 12px;
+      border: none;
+      background: rgba(255, 69, 58, 0.15);
+      color: #ff453a;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+    .btn-clear-history:active {
+      background: rgba(255, 69, 58, 0.25);
+    }
+    .empty-history {
+      text-align: center;
+      padding: 36px 0;
+      color: #8e8e93;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div id="statusBadge" class="badge">
+      <div class="dot"></div>
+      <span id="statusText">準備就緒</span>
+    </div>
+
+    <!-- 雙頻道開關 -->
+    <div class="channel-switch">
+      <button class="channel-btn active" id="btn881" onclick="switchChannel('881')">雷霆 881</button>
+      <button class="channel-btn" id="btn903" onclick="switchChannel('903')">叱咤 903</button>
+    </div>
+
+    <!-- 錯誤警示 -->
+    <div id="errorBox"></div>
+
+    <!-- 節目資訊卡片 -->
+    <div class="program-box">
+      <div class="program-top-row">
+        <span class="program-tag">● ON AIR 正式播出</span>
+        <span id="currentDayPill" class="day-pill">--</span>
+      </div>
+      <div id="currentProgTitle" class="program-title">載入中...</div>
+      <div id="currentProgTime" class="program-time">--:-- - --:--</div>
+      
+      <!-- 節目表 & 聆聽記錄 雙按鈕 -->
+      <div class="btn-row">
+        <button class="nav-btn" onclick="openScheduleDrawer()">
+          📅 節目表
+        </button>
+        <button class="nav-btn" onclick="openHistoryDrawer()">
+          📊 歷史記錄
+        </button>
+      </div>
+
+      <div id="nextProgText" class="program-next">緊接播放：--:--</div>
+    </div>
+  </div>
+
+  <!-- 數據面板 -->
+  <div class="card">
+    <div class="card-label">本次收聽消耗流量</div>
+    <div>
+      <span id="dataDisplay" class="data-val">0.00</span>
+      <span class="data-unit">MB</span>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <small>即時網速</small>
+        <span id="speedDisplay">0.0 KB/s</span>
+      </div>
+      <div class="stat-box">
+        <small>收聽時間</small>
+        <span id="timeDisplay">00:00:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 控制按鈕區 -->
+  <div class="controls">
+    <button class="btn-reset" onclick="resetStats()">
+      <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm-6.29.71L4.3 6.12 6.8 8.62C6.3 9.68 6 10.8 6 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-.85.18-1.65.49-2.38l2.22 2.22 1.41-1.41L5.71 4.71z"/>
+      </svg>
+      歸零計量
+    </button>
+
+    <button id="playBtn" class="btn-play" onclick="togglePlay()">▶</button>
+
+    <div style="width: 52px;"></div>
+  </div>
+
+  <!-- 1. 全日節目表抽屜面板 -->
+  <div id="drawerOverlay" class="drawer-overlay" onclick="closeScheduleDrawer(event)">
+    <div class="drawer-content" onclick="event.stopPropagation()">
+      <div class="drawer-handle"></div>
+      <div class="drawer-header">
+        <div class="drawer-title-box">
+          <div id="drawerTitle" class="drawer-title">電台節目表</div>
+          <div id="drawerSubtitle" class="drawer-subtitle">今日節目排程</div>
+        </div>
+        <button class="drawer-close" onclick="closeScheduleDrawer()">✕</button>
+      </div>
+      <div id="scheduleContainer" class="drawer-list"></div>
+    </div>
+  </div>
+
+  <!-- 2. 聆聽歷史記錄抽屜面板 -->
+  <div id="historyOverlay" class="drawer-overlay" onclick="closeHistoryDrawer(event)">
+    <div class="drawer-content" onclick="event.stopPropagation()">
+      <div class="drawer-handle"></div>
+      <div class="drawer-header">
+        <div class="drawer-title-box">
+          <div class="drawer-title">歷史記錄</div>
+          <div class="drawer-subtitle">本地儲存・流量明細</div>
+        </div>
+        <button class="drawer-close" onclick="closeHistoryDrawer()">✕</button>
+      </div>
+
+      <!-- 總統計概覽 -->
+      <div class="history-summary">
+        <div class="summary-box">
+          <small>累計總時長</small>
+          <span id="historyTotalTime">00:00:00</span>
+        </div>
+        <div class="summary-box">
+          <small>累計總流量</small>
+          <span id="historyTotalData">0.00 MB</span>
+        </div>
+      </div>
+
+      <!-- 記錄列表 -->
+      <div id="historyContainer" class="drawer-list"></div>
+
+      <!-- 清除記錄按鈕 -->
+      <button class="btn-clear-history" onclick="clearAllHistory()">
+        🗑️ 清除所有記錄
+      </button>
+    </div>
+  </div>
+
+  <audio id="audioStream" preload="none"></audio>
+
+  <script>
+    const CHANNELS = {
+      '881': {
+        name: '雷霆 881 商業電台',
+        shortName: '雷霆 881',
+        url: 'https://881903.fishtv.dpdns.org/proxy/881'
+      },
+      '903': {
+        name: '叱咤 903 商業電台',
+        shortName: '叱咤 903',
+        url: 'https://881903.fishtv.dpdns.org/proxy/903'
+      }
+    };
+
+    const SCHEDULES = {
+      '881': {
+        weekday: [
+          { start: "00:00", end: "01:00", name: "《有誰共鳴》" },
+          { start: "01:00", end: "06:00", name: "《雷霆音樂派》" },
+          { start: "06:00", end: "06:30", name: "《晨光新聞天地》" },
+          { start: "06:30", end: "10:00", name: "《在晴朗的一天出發》" },
+          { start: "10:00", end: "10:30", name: "《雷霆音樂派》" },
+          { start: "10:30", end: "12:00", name: "《大玩派》" },
+          { start: "12:00", end: "12:30", name: "《午間新聞天地》" },
+          { start: "12:30", end: "15:00", name: "《1圈圈》" },
+          { start: "15:00", end: "18:00", name: "《雷霆音樂圈》" },
+          { start: "18:00", end: "18:30", name: "《傍晚新聞天地》" },
+          { start: "18:30", end: "20:00", name: "《左右大局》" },
+          { start: "20:00", end: "21:00", name: "《國際政經評》" },
+          { start: "21:00", end: "23:00", name: "《同途有我》" },
+          { start: "23:00", end: "24:00", name: "《光明頂》" }
+        ],
+        saturday: [
+          { start: "00:00", end: "01:00", name: "《有誰共鳴》" },
+          { start: "01:00", end: "06:00", name: "《雷霆音樂派》" },
+          { start: "06:00", end: "08:00", name: "《晨光新聞 / 音樂圈》" },
+          { start: "08:00", end: "09:00", name: "《政好星期六》" },
+          { start: "09:00", end: "11:00", name: "《樂和心事》" },
+          { start: "11:00", end: "12:30", name: "《超級年輕人》" },
+          { start: "12:30", end: "13:00", name: "《午間新聞天地》" },
+          { start: "13:00", end: "15:00", name: "《1圈圈 (週末版)》" },
+          { start: "15:00", end: "18:00", name: "《雷霆音樂派》" },
+          { start: "18:00", end: "18:30", name: "《傍晚新聞天地》" },
+          { start: "18:30", end: "20:00", name: "《大娛樂家》" },
+          { start: "20:00", end: "22:00", name: "《美樂時光》" },
+          { start: "22:00", end: "24:00", name: "《雷霆音樂派》" }
+        ],
+        sunday: [
+          { start: "00:00", end: "06:00", name: "《雷霆音樂派》" },
+          { start: "06:00", end: "08:00", name: "《晨光新聞 / 音樂圈》" },
+          { start: "08:00", end: "10:00", name: "《政經星期日》" },
+          { start: "10:00", end: "12:00", name: "《身心靈知音》" },
+          { start: "12:00", end: "12:30", name: "《午間新聞天地》" },
+          { start: "12:30", end: "15:00", name: "《雷霆音樂派》" },
+          { start: "15:00", end: "18:00", name: "《大玩派 (精選)》" },
+          { start: "18:00", end: "18:30", name: "《傍晚新聞天地》" },
+          { start: "18:30", end: "21:00", name: "《美樂時光》" },
+          { start: "21:00", end: "23:00", name: "《同途有我》" },
+          { start: "23:00", end: "24:00", name: "《光明頂 (精華重溫)》" }
+        ]
+      },
+      '903': {
+        weekday: [
+          { start: "00:00", end: "01:00", name: "《夜間熱》" },
+          { start: "01:00", end: "02:00", name: "《宇宙船》" },
+          { start: "02:00", end: "06:00", name: "《叱咤留聲機》" },
+          { start: "06:00", end: "07:00", name: "《早！junior》" },
+          { start: "07:00", end: "08:00", name: "《廣東歌先行》" },
+          { start: "08:00", end: "10:00", name: "《在晴朗的一天出發》" },
+          { start: "10:00", end: "12:00", name: "《早霸王》" },
+          { start: "12:00", end: "13:00", name: "《1圈圈》" },
+          { start: "13:00", end: "15:00", name: "《叱咤樂壇》" },
+          { start: "15:00", end: "17:00", name: "《口水多過浪花》" },
+          { start: "17:00", end: "18:00", name: "《廣東歌節拍》" },
+          { start: "18:00", end: "19:00", name: "《集雜志》" },
+          { start: "19:00", end: "20:30", name: "《聖艾粒LaLaLaLa》" },
+          { start: "20:30", end: "22:00", name: "《二人混戰》" },
+          { start: "22:00", end: "23:00", name: "《騷動音樂》" },
+          { start: "23:00", end: "24:00", name: "《公子會》" }
+        ],
+        saturday: [
+          { start: "00:00", end: "01:00", name: "《夜間熱》" },
+          { start: "01:00", end: "02:00", name: "《宇宙船》" },
+          { start: "02:00", end: "06:00", name: "《叱咤留聲機》" },
+          { start: "06:00", end: "08:00", name: "《廣東歌先行》" },
+          { start: "08:00", end: "09:00", name: "《咪芝蓮》" },
+          { start: "09:00", end: "11:00", name: "《西加航空》" },
+          { start: "11:00", end: "13:00", name: "《903專業推介》" },
+          { start: "13:00", end: "15:00", name: "《903豁達推介》" },
+          { start: "15:00", end: "17:00", name: "《漫事屋》" },
+          { start: "17:00", end: "19:00", name: "《咪芝蓮 / 音樂熱》" },
+          { start: "19:00", end: "21:00", name: "《廣東歌節拍》" },
+          { start: "21:00", end: "23:00", name: "《903 歌神》" },
+          { start: "23:00", end: "24:00", name: "《公子會》" }
+        ],
+        sunday: [
+          { start: "00:00", end: "02:00", name: "《夜間熱》" },
+          { start: "02:00", end: "06:00", name: "《叱咤留聲機》" },
+          { start: "06:00", end: "08:00", name: "《廣東歌先行》" },
+          { start: "08:00", end: "10:00", name: "《兒童適宜》" },
+          { start: "10:00", end: "12:00", name: "《讀得又睇得》" },
+          { start: "12:00", end: "14:00", name: "《熱鬧星期日》" },
+          { start: "14:00", end: "16:00", name: "《叱咤樂壇 (精選)》" },
+          { start: "16:00", end: "18:00", name: "《口水多過浪花 (精選)》" },
+          { start: "18:00", end: "20:00", name: "《集雜志》" },
+          { start: "20:00", end: "21:00", name: "《廣東歌節拍》" },
+          { start: "21:00", end: "23:00", name: "《聖艾粒 (週末精華)》" },
+          { start: "23:00", end: "24:00", name: "《903 獨立音樂》" }
+        ]
+      }
+    };
+
+    let currentChannel = '881';
+    let currentPlayingShowName = '商台節目';
+    let currentPlayingIndex = -1;
+    let hls = null;
+
+    const audio = document.getElementById('audioStream');
+    const playBtn = document.getElementById('playBtn');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const errorBox = document.getElementById('errorBox');
+    const dataDisplay = document.getElementById('dataDisplay');
+    const speedDisplay = document.getElementById('speedDisplay');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const currentProgTitle = document.getElementById('currentProgTitle');
+    const currentProgTime = document.getElementById('currentProgTime');
+    const currentDayPill = document.getElementById('currentDayPill');
+    const nextProgText = document.getElementById('nextProgText');
+
+    // 抽屜元件
+    const drawerOverlay = document.getElementById('drawerOverlay');
+    const drawerTitle = document.getElementById('drawerTitle');
+    const drawerSubtitle = document.getElementById('drawerSubtitle');
+    const scheduleContainer = document.getElementById('scheduleContainer');
+
+    const historyOverlay = document.getElementById('historyOverlay');
+    const historyContainer = document.getElementById('historyContainer');
+    const historyTotalTime = document.getElementById('historyTotalTime');
+    const historyTotalData = document.getElementById('historyTotalData');
+
+    const BYTES_PER_SECOND = 10240; 
+    let secondsElapsed = 0;
+    let timerInterval = null;
+
+    // 獨立會話追蹤（用於保存當次記錄）
+    let sessionSeconds = 0;
+    let sessionStartDate = null;
+    let sessionChannelKey = '881';
+
+    function showError(msg) {
+      errorBox.style.display = 'block';
+      errorBox.innerText = msg;
+    }
+
+    function clearError() {
+      errorBox.style.display = 'none';
+      errorBox.innerText = '';
+    }
+
+    function loadStream(url) {
+      clearError();
+      if (Hls.isSupported()) {
+        if (hls) hls.destroy();
+        hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+        hls.loadSource(url);
+        hls.attachMedia(audio);
+        hls.on(Hls.Events.ERROR, function (event, data) {
+          if (data.fatal) {
+            showError(`串流異常: ${data.details}（伺服器可能關閉）`);
+          }
+        });
+      } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+        audio.src = url;
+      } else {
+        showError("您的設備不支援 HLS 播放");
+      }
+    }
+
+    function timeToMinutes(str) {
+      const [h, m] = str.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function getTodaySchedule(channelKey) {
+      const day = new Date().getDay();
+      const channelData = SCHEDULES[channelKey];
+      const dayNames = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+
+      let list = channelData.weekday;
+      let dayType = "平日時間表";
+
+      if (day === 0) {
+        list = channelData.sunday;
+        dayType = "星期日時間表";
+      } else if (day === 6) {
+        list = channelData.saturday;
+        dayType = "星期六時間表";
+      }
+
+      return {
+        list: list,
+        dayLabel: dayNames[day],
+        dayType: dayType
+      };
+    }
+
+    function updateScheduleDisplay() {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const scheduleInfo = getTodaySchedule(currentChannel);
+      const list = scheduleInfo.list;
+
+      currentDayPill.innerText = scheduleInfo.dayLabel;
+
+      let activeIndex = -1;
+      for (let i = 0; i < list.length; i++) {
+        const startMin = timeToMinutes(list[i].start);
+        const endMin = timeToMinutes(list[i].end);
+        if (currentMinutes >= startMin && currentMinutes < endMin) {
+          activeIndex = i;
+          break;
+        }
+      }
+
+      currentPlayingIndex = activeIndex;
+
+      if (activeIndex !== -1) {
+        const currentShow = list[activeIndex];
+        const nextShow = list[(activeIndex + 1) % list.length];
+        currentProgTitle.innerText = currentShow.name;
+        currentProgTime.innerText = `${currentShow.start} - ${currentShow.end}`;
+        nextProgText.innerText = `緊接播放：${nextShow.start} ${nextShow.name}`;
+        currentPlayingShowName = currentShow.name;
+      } else {
+        currentProgTitle.innerText = `${CHANNELS[currentChannel].shortName} 直播`;
+        currentProgTime.innerText = "24 小時即時廣播";
+        nextProgText.innerText = "";
+        currentPlayingShowName = CHANNELS[currentChannel].shortName;
+      }
+
+      updateMediaSession();
+    }
+
+    function renderScheduleList() {
+      const scheduleInfo = getTodaySchedule(currentChannel);
+      drawerTitle.innerText = `${CHANNELS[currentChannel].shortName} 節目表`;
+      drawerSubtitle.innerText = `${scheduleInfo.dayLabel}・${scheduleInfo.dayType}`;
+      
+      const list = scheduleInfo.list;
+      scheduleContainer.innerHTML = '';
+
+      list.forEach((item, index) => {
+        const isCurrent = (index === currentPlayingIndex);
+        const div = document.createElement('div');
+        div.className = `schedule-item ${isCurrent ? 'current' : ''}`;
+        div.id = `schedule-item-${index}`;
+        div.innerHTML = `
+          <div>
+            <div class="schedule-item-title">${item.name}</div>
+            <div class="schedule-item-time">${item.start} - ${item.end}</div>
+          </div>
+          <div class="live-badge">● 直播中</div>
+        `;
+        scheduleContainer.appendChild(div);
+      });
+
+      if (currentPlayingIndex !== -1) {
+        setTimeout(() => {
+          const currentElem = document.getElementById(`schedule-item-${currentPlayingIndex}`);
+          if (currentElem) {
+            currentElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 200);
+      }
+    }
+
+    function openScheduleDrawer() {
+      renderScheduleList();
+      drawerOverlay.classList.add('show');
+    }
+
+    function closeScheduleDrawer() {
+      drawerOverlay.classList.remove('show');
+    }
+
+    // ==========================================
+    // 聆聽記錄引擎 (localStorage)
+    // ==========================================
+    function getStoredHistory() {
+      try {
+        return JSON.parse(localStorage.getItem('radio_history_records') || '[]');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveRecordToHistory(record) {
+      const list = getStoredHistory();
+      list.unshift(record); // 最新記錄排在最前
+      if (list.length > 80) list.pop(); // 最多保存 80 筆
+      localStorage.setItem('radio_history_records', JSON.stringify(list));
+    }
+
+    function recordCurrentSession() {
+      // 收聽超過 5 秒才建立正式記錄
+      if (sessionSeconds >= 5 && sessionStartDate) {
+        const now = sessionStartDate;
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        
+        const dateStr = `${year}/${month}/${day}`;
+        const timeStr = `${hours}:${minutes}`;
+        const dataUsedMB = ((sessionSeconds * BYTES_PER_SECOND) / (1024 * 1024)).toFixed(2);
+
+        const record = {
+          id: Date.now(),
+          dateStr: dateStr,
+          timeStr: timeStr,
+          channel: sessionChannelKey,
+          channelName: CHANNELS[sessionChannelKey].shortName,
+          durationSec: sessionSeconds,
+          dataMB: dataUsedMB
+        };
+
+        saveRecordToHistory(record);
+      }
+
+      // 重設當次會話計數
+      sessionSeconds = 0;
+      sessionStartDate = null;
+    }
+
+    function formatSecToDuration(totalSec) {
+      const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+      const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+      const s = String(totalSec % 60).padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    function renderHistoryList() {
+      const list = getStoredHistory();
+      historyContainer.innerHTML = '';
+
+      if (list.length === 0) {
+        historyContainer.innerHTML = '<div class="empty-history">暫無聆聽記錄<br><small style="color:#636366">收聽超過 5 秒將自動在此記錄</small></div>';
+        historyTotalTime.innerText = '00:00:00';
+        historyTotalData.innerText = '0.00 MB';
+        return;
+      }
+
+      let totalSec = 0;
+      let totalMB = 0;
+
+      list.forEach(item => {
+        totalSec += (item.durationSec || 0);
+        totalMB += parseFloat(item.dataMB || 0);
+
+        const is903 = (item.channel === '903');
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `
+          <div class="history-item-left">
+            <div class="history-channel-tag">
+              ${item.channelName}
+              <span class="tag-pill ${is903 ? 'p903' : ''}">${item.channel}</span>
+            </div>
+            <div class="history-date">${item.dateStr} ${item.timeStr} 開始</div>
+          </div>
+          <div class="history-item-right">
+            <div class="history-data">${item.dataMB} MB</div>
+            <div class="history-duration">${formatSecToDuration(item.durationSec)}</div>
+          </div>
+        `;
+        historyContainer.appendChild(div);
+      });
+
+      historyTotalTime.innerText = formatSecToDuration(totalSec);
+      historyTotalData.innerText = `${totalMB.toFixed(2)} MB`;
+    }
+
+    function openHistoryDrawer() {
+      renderHistoryList();
+      historyOverlay.classList.add('show');
+    }
+
+    function closeHistoryDrawer() {
+      historyOverlay.classList.remove('show');
+    }
+
+    function clearAllHistory() {
+      if (confirm('確定要清除所有聆聽記錄嗎？')) {
+        localStorage.removeItem('radio_history_records');
+        renderHistoryList();
+      }
+    }
+
+    // ==========================================
+    // 頻道切換與播放控制
+    // ==========================================
+    function switchChannel(channelKey) {
+      if (currentChannel === channelKey) return;
+
+      // 切換前結算前一個頻道的記錄
+      if (!audio.paused) {
+        recordCurrentSession();
+      }
+
+      currentChannel = channelKey;
+      sessionChannelKey = channelKey;
+      if (!audio.paused) {
+        sessionStartDate = new Date();
+      }
+
+      document.getElementById('btn881').classList.toggle('active', channelKey === '881');
+      document.getElementById('btn903').classList.toggle('active', channelKey === '903');
+
+      updateScheduleDisplay();
+      if (drawerOverlay.classList.contains('show')) {
+        renderScheduleList();
+      }
+
+      const wasPlaying = !audio.paused;
+      loadStream(CHANNELS[channelKey].url);
+
+      if (wasPlaying) {
+        statusBadge.classList.add('active');
+        statusText.innerText = '切換連線中...';
+        audio.play().then(() => {
+          statusText.innerText = 'LIVE 直播中';
+        }).catch(err => {
+          showError("播放失敗: " + err.message);
+        });
+      }
+    }
+
+    function togglePlay() {
+      if (audio.paused) {
+        statusText.innerText = '緩衝連線中...';
+        if (!audio.src && !hls) {
+          loadStream(CHANNELS[currentChannel].url);
+        }
+
+        audio.play().then(() => {
+          playBtn.innerText = '❚❚';
+          statusBadge.classList.add('active');
+          statusText.innerText = 'LIVE 直播中';
+          clearError();
+          
+          // 開始記錄此段會話
+          sessionStartDate = new Date();
+          sessionChannelKey = currentChannel;
+          sessionSeconds = 0;
+
+          startTimer();
+        }).catch(err => {
+          statusText.innerText = '連線失敗';
+          showError("播放錯誤: " + err.message);
+        });
+      } else {
+        audio.pause();
+        playBtn.innerText = '▶';
+        statusBadge.classList.remove('active');
+        statusText.innerText = '已暫停';
+        stopTimer();
+
+        // 暫停時自動結算並保存當次記錄
+        recordCurrentSession();
+      }
+    }
+
+    function updateMediaSession() {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentPlayingShowName || CHANNELS[currentChannel].name,
+          artist: CHANNELS[currentChannel].shortName,
+          album: '香港商業電台',
+          artwork: [
+            { src: 'https://img.icons8.com/color/512/radio.png', sizes: '512x512', type: 'image/png' }
+          ]
+        });
+
+        navigator.mediaSession.setActionHandler('play', togglePlay);
+        navigator.mediaSession.setActionHandler('pause', togglePlay);
+      }
+    }
+
+    function startTimer() {
+      if (timerInterval) return;
+      speedDisplay.innerText = "10.0 KB/s";
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        sessionSeconds++;
+        updateStats();
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      speedDisplay.innerText = "0.0 KB/s";
+    }
+
+    function updateStats() {
+      const totalBytes = secondsElapsed * BYTES_PER_SECOND;
+      const mb = totalBytes / (1024 * 1024);
+      dataDisplay.innerText = mb.toFixed(2);
+      timeDisplay.innerText = formatSecToDuration(secondsElapsed);
+    }
+
+    function resetStats() {
+      secondsElapsed = 0;
+      updateStats();
+    }
+
+    // 離開網頁或切換 App 時結算數據
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && !audio.paused) {
+        // 背景持續播放時更新時間 session
+      } else if (!document.hidden && audio.paused && sessionSeconds >= 5) {
+        recordCurrentSession();
+      }
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (!audio.paused) {
+        recordCurrentSession();
+      }
+    });
+
+    audio.addEventListener('error', function () {
+      statusText.innerText = '串流錯誤';
+      showError("無法獲取電台音訊，伺服器可能無回應。");
+    });
+
+    loadStream(CHANNELS[currentChannel].url);
+    updateScheduleDisplay();
+    setInterval(updateScheduleDisplay, 30000);
+  </script>
+</body>
+</html>
+
+  <script>
+    
+  </script>
+</body>
+</html>
